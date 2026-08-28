@@ -84,6 +84,7 @@ Every prediction is a **machine-evaluable predicate over future snapshots**.
   "rationale": null,
   "features_at_creation": {},
   "calibration_phase": true,
+  "quota_filled": false,
   "status": "open",
   "outcome": null,
   "resolved_at": null,
@@ -174,7 +175,8 @@ Five decisions per week. Steps 1, 2, 3 and 5 encode the thesis; step 4 does not.
 2. **Trigger** — a rule over the snapshot series fires.
 3. **Claim construction** — trigger determines claim type, threshold, deadline.
 4. **Probability** — base rate (model) and discretionary (human).
-5. **Ranking** — readiness score; top 20 form the slate.
+5. **Stratified selection** — allocate a floor of 3 claims per trigger family,
+   then fill remaining slots by readiness score. 20 claims total.
 
 ### Triggers, phased
 
@@ -221,9 +223,24 @@ readiness =  w1 * eng_share
 Weights are hand-set, transparent, and live in `ledger/config.yaml` under
 `config_version`.
 
-### Slate size
+### Slate size and stratification
 
 20 claims/week. Roughly 320 calls by January, ~200 resolved.
+
+Selection is **stratified, not pure top-20 by readiness.** Ranking alone would
+over-sample whichever trigger family fires most often — plausibly reaching
+January with 140 resolved GTM claims and 11 pricing claims, leaving the research
+question unanswerable for every signal but one.
+
+A floor of 3 claims per trigger family per week yields roughly 60 resolved
+claims per family by January, which is enough to rank them. Remaining slots go
+to the highest-readiness candidates regardless of family.
+
+The cost is real and should be stated: filling a quota sometimes means including
+a lower-conviction claim, which slightly worsens the aggregate Brier score. That
+is an acceptable trade — a marginally worse score that supports a finding beats
+a better score that supports nothing. Claims admitted to fill a quota are
+flagged `quota_filled: true` so the effect can be measured rather than assumed.
 
 **Hard ergonomic constraint:** 20 calls must fit in one sitting, so each claim
 must render on **one screen** — claim, the three or four numbers that matter,
@@ -291,12 +308,23 @@ Any other diff fails CI. Same pattern as the existing frozen-field check on
 150 companies, two cohorts, both permanently tagged:
 
 - **~100 systematic** — YC W26/S26 plus Form D rolling, per `SPEC.md`.
+  Sector mix ~75% AI / ~25% fintech.
 - **~50 target-fund portfolio** — LA-area seed/AI funds.
+
+Fund selection is optimised for **USC alumni overlap** — funds with USC or
+Marshall people on the team. This compounds with outreach already underway: a
+warm alum introduction combined with *"I've tracked three of your portfolio
+companies weekly for four months"* is materially stronger than either alone.
 
 > **Open decision, gated before Sep 7:** the fund list is not yet chosen. It
 > must be researched, proposed, and explicitly approved before any entry is
 > written, because `slug`, `added` and `cohort` are permanent and CI-enforced —
 > this is the one decision in the project that cannot be revised later.
+
+**Consequence to accept:** at ~75% AI in the systematic cohort plus a fund
+cohort that will also skew AI, the universe lands near 80/20 overall. Fintech is
+descriptive colour, not a cell that supports conclusions. No fintech finding
+should be promised.
 
 Separate `cohort` values so every analysis can be reported with and without the
 fund cohort. `slug`, `added` and `cohort` are permanent and CI-enforced.
@@ -360,7 +388,44 @@ the triggers.
 
 ---
 
-## 10. Schedule
+## 10. Research objective
+
+**Question:** which public signal is the single best leading indicator of
+commercialization?
+
+A horse race across the trigger families — GTM inflection, pricing move, hiring
+threshold, shipping velocity, enterprise motion — ranked by how well each
+predicts its own claim resolving. Output is a ranked table with base rates,
+resolution rates, and lead times.
+
+This is chosen over a cross-sector comparison because the universe is too
+AI-weighted to support one, and over "can a human beat the model" because that
+falls out of the head-to-head for free and needs no separate design.
+
+Stratified slate selection (§6) exists to make this question answerable. Without
+it, there is no research layer.
+
+---
+
+## 11. The weekly ritual
+
+Abandonment is the single largest risk to the project. The ritual is defended by
+a **scheduled task**, with three specifics that matter more than the mechanism:
+
+- **Fires Monday evening, not morning.** Collection runs 09:00 UTC — 2am
+  Pacific. A morning notification competes with class and work and gets
+  dismissed. A 30-minute reflective task needs an uncontended evening slot.
+- **The top 3 claims appear in the notification body.** If seeing what is
+  waiting requires opening a terminal, activation energy has been added at
+  exactly the point where the habit breaks.
+- **`ledger review` shows a streak counter.** Cheap to build, and it surfaces a
+  skipped week to the user before it surfaces in the published record.
+
+No calendar block. Two reminders for one task trains the user to ignore both.
+
+---
+
+## 12. Schedule
 
 Today is 2026-08-28. The only immovable date is **2026-09-14**.
 
@@ -379,7 +444,7 @@ cutting scope elsewhere, never by moving that date.
 
 ---
 
-## 11. Out of scope
+## 13. Out of scope
 
 No web UI, no database, no LLM calls, no Wayback backfill, no revenue data, no
 community/G2 collectors. A public-facing page is a December question, and only
@@ -387,12 +452,14 @@ if the record merits showing.
 
 ---
 
-## 12. Risks
+## 14. Risks
 
 **Abandonment in week 6.** The realistic failure mode. Mitigated by: GitHub
-Actions performing everything except the 20-minute review; the one-screen CLI
-constraint; and the model predicting regardless of whether the human shows up,
-so the record continues with skipped weeks honestly visible.
+Actions performing everything except the review; the one-screen CLI constraint;
+the Monday-evening scheduled task with claims inline (§9b); the streak counter;
+and — most importantly — the model predicting regardless of whether the human
+shows up, so the record degrades gracefully rather than stopping, with skipped
+weeks honestly visible.
 
 **Coverage collapse.** A structural break (provider API change) silently
 degrading the series. Mitigated by the `validate` step failing the run below 50%
