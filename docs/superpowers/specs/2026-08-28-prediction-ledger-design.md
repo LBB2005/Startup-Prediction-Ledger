@@ -444,6 +444,30 @@ cutting scope elsewhere, never by moving that date.
 
 ---
 
+## 12a. Scraper identity
+
+Every request to every source carries:
+
+```
+User-Agent: Momentum Scorecard (research project) <blacksha@usc.edu>
+```
+
+SEC EDGAR requires this and enforces 10 req/sec; the same header is sent
+everywhere else as a matter of politeness, per `CLAUDE.md`.
+
+**The address is read from `SCRAPER_CONTACT_EMAIL`, never hardcoded.** The
+collector raises a clear error if it is unset rather than falling back to an
+anonymous or fake User-Agent — a silent fallback would make the run impolite
+without anyone noticing.
+
+Rationale for the env var: the repo is intended to be published. The address is
+already disclosed to every site operator via the header, so this is not
+concealment — but a personal address sitting in committed source is permanently
+searchable by scrapers, and git history cannot be cleaned after publication.
+Set locally in `.env` (gitignored) and as a GitHub Actions secret.
+
+---
+
 ## 13. Out of scope
 
 No web UI, no database, no LLM calls, no Wayback backfill, no revenue data, no
